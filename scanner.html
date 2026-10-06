@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>ماسح QR</title>
+
+  <script
+    src="https://unpkg.com/html5-qrcode"
+    type="text/javascript">
+  </script>
+
+  <style>
+
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    #النتيجة {
+      margin-top: 20px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #166534;
+      word-break: break-word;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+  <h2>📷 مسح QR للتلميذ</h2>
+
+  <div id="reader"></div>
+
+  <div id="النتيجة"></div>
+
+
+  <script>
+
+    let الماسح = null;
+    let تم_المسح = false;
+
+
+    function تشغيل_الماسح() {
+
+      الماسح =
+        new Html5Qrcode("reader");
+
+
+      الماسح.start(
+
+        {
+          facingMode: "environment"
+        },
+
+        {
+          fps: 10,
+
+          qrbox: {
+            width: 250,
+            height: 250
+          }
+
+        },
+
+        function(النص) {
+
+          if (تم_المسح) {
+            return;
+          }
+
+          تم_المسح = true;
+
+
+          const الرقم =
+            String(النص || "").trim();
+
+
+          document.getElementById(
+            "النتيجة"
+          ).textContent =
+            "تم المسح: " + الرقم;
+
+
+          الماسح
+            .stop()
+            .then(function() {
+
+              // إرسال الرقم إلى صفحة المؤسسة
+              if (window.opener) {
+
+                window.opener.postMessage(
+                  {
+                    type: "QR_تلميذ_المطعم",
+                    value: الرقم
+                  },
+                  "*"
+                );
+
+
+                // إغلاق صفحة الماسح
+                window.close();
+
+              }
+
+            })
+            .catch(function(خطأ) {
+
+              console.log(
+                "خطأ عند إيقاف الكاميرا:",
+                خطأ
+              );
+
+            });
+
+        },
+
+        function() {
+
+          // تجاهل أخطاء البحث العادية
+
+        }
+
+      )
+
+      .catch(function(خطأ) {
+
+        document.getElementById(
+          "النتيجة"
+        ).textContent =
+          "❌ تعذر تشغيل الكاميرا: " + خطأ;
+
+      });
+
+    }
+
+
+    تشغيل_الماسح();
+
+  </script>
+
+</body>
+
+</html>
