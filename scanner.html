@@ -31,10 +31,35 @@
       margin-bottom: 20px;
     }
 
+    button {
+      font-size: 20px;
+      padding: 14px 20px;
+      margin: 8px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #زر_واحد {
+      background: #2563eb;
+      color: white;
+    }
+
+    #زر_متعدد {
+      background: #16a34a;
+      color: white;
+    }
+
+    #إيقاف {
+      background: #dc2626;
+      color: white;
+      display: none;
+    }
+
     #reader {
       width: 100%;
       max-width: 400px;
-      margin: auto;
+      margin: 20px auto;
       background: white;
       border-radius: 12px;
       padding: 10px;
@@ -43,10 +68,16 @@
 
     #النتيجة {
       margin-top: 20px;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: bold;
       color: #166534;
       word-break: break-word;
+    }
+
+    #العداد {
+      margin-top: 10px;
+      font-size: 20px;
+      font-weight: bold;
     }
 
   </style>
@@ -56,20 +87,103 @@
 
 <body>
 
-  <h2>📷 مسح QR للتلميذ</h2>
+  <h2>📷 ماسح QR للتلاميذ</h2>
+
+
+  <button
+    id="زر_واحد"
+    type="button">
+
+    📷 مسح QR واحد
+
+  </button>
+
+
+  <button
+    id="زر_متعدد"
+    type="button">
+
+    📷 مسح QR متعدد
+
+  </button>
+
+
+  <button
+    id="إيقاف"
+    type="button">
+
+    ⛔ إيقاف المسح
+
+  </button>
+
 
   <div id="reader"></div>
 
-  <div id="النتيجة"></div>
+
+  <div id="النتيجة">
+    اختر نوع المسح
+  </div>
+
+
+  <div id="العداد">
+    عدد التلاميذ: 0
+  </div>
 
 
   <script>
 
     let الماسح = null;
+
+    let وضع_المسح = "";
+
     let تم_المسح = false;
 
+    let آخر_رقم = "";
 
-    function تشغيل_الماسح() {
+    let وقت_آخر_مسح = 0;
+
+    let عدد_التلاميذ = 0;
+
+    const الأرقام_الممسوحة =
+      new Set();
+
+
+    // =====================================
+    // إرسال الرقم إلى صفحة المؤسسة
+    // =====================================
+
+    function إرسال_الرقم(الرقم) {
+
+      if (!window.opener) {
+        return;
+      }
+
+      window.opener.postMessage(
+
+        {
+          type:
+            "QR_تلميذ_المطعم",
+
+          value:
+            الرقم
+        },
+
+        "*"
+
+      );
+
+    }
+
+
+    // =====================================
+    // تشغيل الكاميرا
+    // =====================================
+
+    function تشغيل_الكاميرا() {
+
+      if (الماسح) {
+        return;
+      }
 
       الماسح =
         new Html5Qrcode("reader");
@@ -78,7 +192,8 @@
       الماسح.start(
 
         {
-          facingMode: "environment"
+          facingMode:
+            "environment"
         },
 
         {
@@ -93,53 +208,139 @@
 
         function(النص) {
 
-          if (تم_المسح) {
+          const الرقم =
+            String(
+              النص || ""
+            ).trim();
+
+
+          if (!الرقم) {
             return;
           }
 
-          تم_المسح = true;
+
+          const الآن =
+            Date.now();
 
 
-          const الرقم =
-            String(النص || "").trim();
+          // =================================
+          // منع القراءة المتكررة
+          // =================================
+
+          if (
+            الرقم === آخر_رقم &&
+            الآن - وقت_آخر_مسح < 2000
+          ) {
+
+            return;
+
+          }
 
 
-          document.getElementById(
-            "النتيجة"
-          ).textContent =
-            "تم المسح: " + الرقم;
+          آخر_رقم = الرقم;
+
+          وقت_آخر_مسح = الآن;
 
 
-          الماسح
-            .stop()
-            .then(function() {
+          // =================================
+          // المسح المتعدد
+          // =================================
 
-              // إرسال الرقم إلى صفحة المؤسسة
-              if (window.opener) {
+          if (
+            وضع_المسح ===
+            "متعدد"
+          ) {
 
-                window.opener.postMessage(
-                  {
-                    type: "QR_تلميذ_المطعم",
-                    value: الرقم
-                  },
-                  "*"
-                );
+            // إذا كان QR قد مسح سابقًا
+            if (
+              الأرقام_الممسوحة.has(
+                الرقم
+              )
+            ) {
+
+              return;
+
+            }
 
 
-                // إغلاق صفحة الماسح
+            الأرقام_الممسوحة.add(
+              الرقم
+            );
+
+
+            عدد_التلاميذ++;
+
+
+            document.getElementById(
+              "العداد"
+            ).textContent =
+              "عدد التلاميذ: " +
+              عدد_التلاميذ;
+
+
+            document.getElementById(
+              "النتيجة"
+            ).textContent =
+              "✅ تم مسح: " +
+              الرقم;
+
+
+            إرسال_الرقم(
+              الرقم
+            );
+
+
+            // لا نوقف الكاميرا
+
+            return;
+
+          }
+
+
+          // =================================
+          // المسح الفردي
+          // =================================
+
+          if (
+            وضع_المسح ===
+            "واحد"
+          ) {
+
+            if (تم_المسح) {
+              return;
+            }
+
+
+            تم_المسح = true;
+
+
+            document.getElementById(
+              "النتيجة"
+            ).textContent =
+              "✅ تم مسح: " +
+              الرقم;
+
+
+            إرسال_الرقم(
+              الرقم
+            );
+
+
+            إيقاف_الكاميرا();
+
+
+            // إغلاق النافذة بعد المسح الفردي
+
+            setTimeout(
+              function() {
+
                 window.close();
 
-              }
+              },
+              500
+            );
 
-            })
-            .catch(function(خطأ) {
-
-              console.log(
-                "خطأ عند إيقاف الكاميرا:",
-                خطأ
-              );
-
-            });
+          }
 
         },
 
@@ -156,14 +357,181 @@
         document.getElementById(
           "النتيجة"
         ).textContent =
-          "❌ تعذر تشغيل الكاميرا: " + خطأ;
+          "❌ تعذر تشغيل الكاميرا: " +
+          خطأ;
+
+        الماسح = null;
 
       });
 
     }
 
 
-    تشغيل_الماسح();
+    // =====================================
+    // إيقاف الكاميرا
+    // =====================================
+
+    function إيقاف_الكاميرا() {
+
+      if (!الماسح) {
+        return;
+      }
+
+
+      الماسح
+        .stop()
+        .then(function() {
+
+          الماسح.clear();
+
+          الماسح = null;
+
+        })
+        .catch(function(خطأ) {
+
+          console.log(
+            "خطأ عند إيقاف الكاميرا:",
+            خطأ
+          );
+
+          الماسح = null;
+
+        });
+
+    }
+
+
+    // =====================================
+    // مسح QR واحد
+    // =====================================
+
+    document.getElementById(
+      "زر_واحد"
+    ).addEventListener(
+      "click",
+      function() {
+
+        إيقاف_الكاميرا();
+
+
+        وضع_المسح =
+          "واحد";
+
+
+        تم_المسح =
+          false;
+
+
+        document.getElementById(
+          "النتيجة"
+        ).textContent =
+          "وجّه الكاميرا نحو QR";
+
+
+        document.getElementById(
+          "إيقاف"
+        ).style.display =
+          "inline-block";
+
+
+        setTimeout(
+          تشغيل_الكاميرا,
+          300
+        );
+
+      }
+    );
+
+
+    // =====================================
+    // مسح QR متعدد
+    // =====================================
+
+    document.getElementById(
+      "زر_متعدد"
+    ).addEventListener(
+      "click",
+      function() {
+
+        إيقاف_الكاميرا();
+
+
+        وضع_المسح =
+          "متعدد";
+
+
+        تم_المسح =
+          false;
+
+
+        آخر_رقم =
+          "";
+
+
+        عدد_التلاميذ =
+          0;
+
+
+        الأرقام_الممسوحة.clear();
+
+
+        document.getElementById(
+          "العداد"
+        ).textContent =
+          "عدد التلاميذ: 0";
+
+
+        document.getElementById(
+          "النتيجة"
+        ).textContent =
+          "وجّه الكاميرا نحو QR";
+
+
+        document.getElementById(
+          "إيقاف"
+        ).style.display =
+          "inline-block";
+
+
+        setTimeout(
+          تشغيل_الكاميرا,
+          300
+        );
+
+      }
+    );
+
+
+    // =====================================
+    // زر إيقاف المسح
+    // =====================================
+
+    document.getElementById(
+      "إيقاف"
+    ).addEventListener(
+      "click",
+      function() {
+
+        إيقاف_الكاميرا();
+
+
+        وضع_المسح =
+          "";
+
+
+        document.getElementById(
+          "إيقاف"
+        ).style.display =
+          "none";
+
+
+        document.getElementById(
+          "النتيجة"
+        ).textContent =
+          "تم إيقاف المسح";
+
+      }
+    );
 
   </script>
 
